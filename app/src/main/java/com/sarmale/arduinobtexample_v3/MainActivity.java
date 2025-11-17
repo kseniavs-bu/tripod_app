@@ -147,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
         btnPan.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                sendCommand("PAN\n");
+                sendCommand("0");
             }
         });
 
@@ -155,7 +155,7 @@ public class MainActivity extends AppCompatActivity {
         btnTilt.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                sendCommand("TILT\n");
+                sendCommand("1");
             }
         });
 
