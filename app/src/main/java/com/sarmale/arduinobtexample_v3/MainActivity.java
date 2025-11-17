@@ -88,36 +88,49 @@ public class MainActivity extends AppCompatActivity {
         // Create an Observable from RxAndroid
         //The code will be executed when an Observer subscribes to the the Observable
         final Observable<String> connectToBTObservable = Observable.create(emitter -> {
-            Log.d(TAG, "Calling connectThread class");
-            //Call the constructor of the ConnectThread class
-            //Passing the Arguments: an Object that represents the BT device,
-            // the UUID and then the handler to update the UI
-            ConnectThread connectThread = new ConnectThread(arduinoBTModule, arduinoUUID, handler);
-            connectThread.run();
-            //Check if Socket connected
-            if (connectThread.getMmSocket().isConnected()) {
-                Log.d(TAG, "Calling ConnectedThread class");
-                //The pass the Open socket as arguments to call the constructor of ConnectedThread
-                ConnectedThread connectedThread = new ConnectedThread(connectThread.getMmSocket());
-                connectedThread.run();
-                if(connectedThread.getValueRead()!=null)
-                {
-                    // If we have read a value from the Arduino
-                    // we call the onNext() function
-                    //This value will be observed by the observer
-                    emitter.onNext(connectedThread.getValueRead());
+            try {
+                Log.d(TAG, "Calling connectThread class");
+                ConnectThread connectThread = new ConnectThread(arduinoBTModule, arduinoUUID, handler);
+                connectThread.run();
+
+                if (connectThread.getMmSocket().isConnected()) {
+                    Log.d(TAG, "Socket connected successfully!");
+
+                    // Get output stream to WRITE data
+                    OutputStream outputStream = connectThread.getMmSocket().getOutputStream();
+
+                    // Continuously send '1' and '0'
+                    for (int i = 0; i < 20; i++) {  // Send 20 times (10 cycles of 1 and 0)
+                        // Send '1'
+                        outputStream.write('1');
+                        outputStream.flush();
+                        Log.d(TAG, "Sent: 1");
+                        Thread.sleep(1000);  // Wait 1 second
+
+                        // Send '0'
+                        outputStream.write('0');
+                        outputStream.flush();
+                        Log.d(TAG, "Sent: 0");
+                        Thread.sleep(1000);  // Wait 1 second
+                    }
+
+                    Log.d(TAG, "Finished sending all data");
+                    emitter.onNext("Sent 20 commands successfully");
+
+                    outputStream.close();
+                } else {
+                    Log.e(TAG, "Socket not connected");
+                    emitter.onError(new Exception("Failed to connect"));
                 }
-                //We just want to stream 1 value, so we close the BT stream
-                connectedThread.cancel();
+
+                connectThread.cancel();
+                emitter.onComplete();
+
+            } catch (Exception e) {
+                Log.e(TAG, "Exception in BT connection: " + e.getMessage(), e);
+                emitter.onError(e);
             }
-           // SystemClock.sleep(5000); // simulate delay
-            //Then we close the socket connection
-            connectThread.cancel();
-            //We could Override the onComplete function
-            emitter.onComplete();
-
         });
-
         connectToDevice.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -130,11 +143,17 @@ public class MainActivity extends AppCompatActivity {
                     connectToBTObservable.
                             observeOn(AndroidSchedulers.mainThread()).
                             subscribeOn(Schedulers.io()).
-                            subscribe(valueRead -> {
-                                //valueRead returned by the onNext() from the Observable
-                                btReadings.setText(valueRead);
-                                //We just scratched the surface with RxAndroid
-                            });
+                            subscribe(
+                                    valueRead -> {
+                                        // Success
+                                        btReadings.setText(valueRead);
+                                    },
+                                    error -> {
+                                        // Error handler - THIS WAS MISSING!
+                                        Log.e(TAG, "Connection error: " + error.getMessage(), error);
+                                        btReadings.setText("Error: " + error.getMessage());
+                                    }
+                            );
 
                 }
             }
@@ -189,11 +208,11 @@ public class MainActivity extends AppCompatActivity {
                             //If we find the HC 05 device (the Arduino BT module)
                             //We assign the device value to the Global variable BluetoothDevice
                             //We enable the button "Connect to HC 05 device"
-                            if (deviceName.equals("HC-05")) {
-                                Log.d(TAG, "HC-05 found");
+                            // Replace with YOUR HC-05's actual MAC address
+                            if (deviceHardwareAddress.equals("00:14:03:05:05:43")) {
+                                Log.d(TAG, "Target device found");
                                 arduinoUUID = device.getUuids()[0].getUuid();
                                 arduinoBTModule = device;
-                                //HC -05 Found, enabling the button to read results
                                 connectToDevice.setEnabled(true);
                             }
                             btDevices.setText(btDevicesString);
