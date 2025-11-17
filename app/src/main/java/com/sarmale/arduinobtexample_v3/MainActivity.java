@@ -1,6 +1,5 @@
 package com.sarmale.arduinobtexample_v3;
 
-
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
@@ -36,47 +35,52 @@ import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
-   // Global variables we will use in the
     private static final String TAG = "FrugalLogs";
     private static final int REQUEST_ENABLE_BT = 1;
-    //We will use a Handler to get the BT Connection statys
     public static Handler handler;
-    private final static int ERROR_READ = 0; // used in bluetooth handler to identify message update
+    private final static int ERROR_READ = 0;
     BluetoothDevice arduinoBTModule = null;
-    UUID arduinoUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); //We declare a default UUID to create the global variable
+    UUID arduinoUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+
+    // Keep a persistent connection
+    private BluetoothSocket btSocket = null;
+    private OutputStream btOutputStream = null;
+
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        //Intances of BT Manager and BT Adapter needed to work with BT in Android.
+
         BluetoothManager bluetoothManager = getSystemService(BluetoothManager.class);
         BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
-        //Intances of the Android UI elements that will will use during the execution of the APP
+
         TextView btReadings = findViewById(R.id.btReadings);
         TextView btDevices = findViewById(R.id.btDevices);
-        Button connectToDevice = (Button) findViewById(R.id.connectToDevice);
-        Button seachDevices = (Button) findViewById(R.id.seachDevices);
-        Button clearValues = (Button) findViewById(R.id.refresh);
+        Button connectToDevice = findViewById(R.id.connectToDevice);
+        Button seachDevices = findViewById(R.id.seachDevices);
+        Button clearValues = findViewById(R.id.refresh);
+
+        // New control buttons
+        Button btnPan = findViewById(R.id.btnPan);
+        Button btnTilt = findViewById(R.id.btnTilt);
+        Button btnMoveUp = findViewById(R.id.btnMoveUp);
+        Button btnMoveDown = findViewById(R.id.btnMoveDown);
+
         Log.d(TAG, "Begin Execution");
 
-
-        //Using a handler to update the interface in case of an error connecting to the BT device
-        //My idea is to show handler vs RxAndroid
         handler = new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(Message msg) {
                 switch (msg.what) {
-
                     case ERROR_READ:
-                       String arduinoMsg = msg.obj.toString(); // Read message from Arduino
+                        String arduinoMsg = msg.obj.toString();
                         btReadings.setText(arduinoMsg);
                         break;
                 }
             }
         };
 
-        // Set a listener event on a button to clear the texts
         clearValues.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -85,8 +89,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Create an Observable from RxAndroid
-        //The code will be executed when an Observer subscribes to the the Observable
+        // Observable for establishing connection
         final Observable<String> connectToBTObservable = Observable.create(emitter -> {
             try {
                 Log.d(TAG, "Calling connectThread class");
@@ -96,34 +99,16 @@ public class MainActivity extends AppCompatActivity {
                 if (connectThread.getMmSocket().isConnected()) {
                     Log.d(TAG, "Socket connected successfully!");
 
-                    // Get output stream to WRITE data
-                    OutputStream outputStream = connectThread.getMmSocket().getOutputStream();
+                    // Store the socket and output stream for reuse
+                    btSocket = connectThread.getMmSocket();
+                    btOutputStream = btSocket.getOutputStream();
 
-                    // Continuously send '1' and '0'
-                    for (int i = 0; i < 20; i++) {  // Send 20 times (10 cycles of 1 and 0)
-                        // Send '1'
-                        outputStream.write('1');
-                        outputStream.flush();
-                        Log.d(TAG, "Sent: 1");
-                        Thread.sleep(1000);  // Wait 1 second
-
-                        // Send '0'
-                        outputStream.write('0');
-                        outputStream.flush();
-                        Log.d(TAG, "Sent: 0");
-                        Thread.sleep(1000);  // Wait 1 second
-                    }
-
-                    Log.d(TAG, "Finished sending all data");
-                    emitter.onNext("Sent 20 commands successfully");
-
-                    outputStream.close();
+                    emitter.onNext("Connected successfully!");
                 } else {
                     Log.e(TAG, "Socket not connected");
                     emitter.onError(new Exception("Failed to connect"));
                 }
 
-                connectThread.cancel();
                 emitter.onComplete();
 
             } catch (Exception e) {
@@ -131,84 +116,97 @@ public class MainActivity extends AppCompatActivity {
                 emitter.onError(e);
             }
         });
+
         connectToDevice.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                btReadings.setText("");
+                btReadings.setText("Connecting...");
                 if (arduinoBTModule != null) {
-                    //We subscribe to the observable until the onComplete() is called
-                    //We also define control the thread management with
-                    // subscribeOn:  the thread in which you want to execute the action
-                    // observeOn: the thread in which you want to get the response
                     connectToBTObservable.
                             observeOn(AndroidSchedulers.mainThread()).
                             subscribeOn(Schedulers.io()).
                             subscribe(
-                                    valueRead -> {
-                                        // Success
-                                        btReadings.setText(valueRead);
+                                    result -> {
+                                        btReadings.setText(result);
+                                        // Enable control buttons after successful connection
+                                        btnPan.setEnabled(true);
+                                        btnTilt.setEnabled(true);
+                                        btnMoveUp.setEnabled(true);
+                                        btnMoveDown.setEnabled(true);
                                     },
                                     error -> {
-                                        // Error handler - THIS WAS MISSING!
                                         Log.e(TAG, "Connection error: " + error.getMessage(), error);
                                         btReadings.setText("Error: " + error.getMessage());
                                     }
                             );
-
                 }
             }
         });
 
-        seachDevices.setOnClickListener(new View.OnClickListener() {
-            //Display all the linked BT Devices
+        // PAN button
+        btnPan.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                //Check if the phone supports BT
+                sendCommand("PAN\n");
+            }
+        });
+
+        // TILT button
+        btnTilt.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                sendCommand("TILT\n");
+            }
+        });
+
+        // MOVE UP button
+        btnMoveUp.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                sendCommand("MOVE_UP\n");
+            }
+        });
+
+        // MOVE DOWN button
+        btnMoveDown.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                sendCommand("MOVE_DOWN\n");
+            }
+        });
+
+        seachDevices.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
                 if (bluetoothAdapter == null) {
-                    // Device doesn't support Bluetooth
                     Log.d(TAG, "Device doesn't support Bluetooth");
                 } else {
                     Log.d(TAG, "Device support Bluetooth");
-                    //Check BT enabled. If disabled, we ask the user to enable BT
                     if (!bluetoothAdapter.isEnabled()) {
                         Log.d(TAG, "Bluetooth is disabled");
                         Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                         if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                            // TODO: Consider calling
-                            //    ActivityCompat#requestPermissions
-                            // here to request the missing permissions, and then overriding
-                            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                            //                                          int[] grantResults)
-                            // to handle the case where the user grants the permission. See the documentation
-                            // for ActivityCompat#requestPermissions for more details.
-                            Log.d(TAG, "We don't BT Permissions");
+                            Log.d(TAG, "We don't have BT Permissions");
                             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-                            Log.d(TAG, "Bluetooth is enabled now");
                         } else {
                             Log.d(TAG, "We have BT Permissions");
                             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-                            Log.d(TAG, "Bluetooth is enabled now");
                         }
-
                     } else {
                         Log.d(TAG, "Bluetooth is enabled");
                     }
-                    String btDevicesString="";
-                    Set < BluetoothDevice > pairedDevices = bluetoothAdapter.getBondedDevices();
+
+                    String btDevicesString = "";
+                    Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
 
                     if (pairedDevices.size() > 0) {
-                        // There are paired devices. Get the name and address of each paired device.
-                        for (BluetoothDevice device: pairedDevices) {
+                        for (BluetoothDevice device : pairedDevices) {
                             String deviceName = device.getName();
-                            String deviceHardwareAddress = device.getAddress(); // MAC address
+                            String deviceHardwareAddress = device.getAddress();
                             Log.d(TAG, "deviceName:" + deviceName);
                             Log.d(TAG, "deviceHardwareAddress:" + deviceHardwareAddress);
-                            //We append all devices to a String that we will display in the UI
-                            btDevicesString=btDevicesString+deviceName+" || "+deviceHardwareAddress+"\n";
-                            //If we find the HC 05 device (the Arduino BT module)
-                            //We assign the device value to the Global variable BluetoothDevice
-                            //We enable the button "Connect to HC 05 device"
-                            // Replace with YOUR HC-05's actual MAC address
+                            btDevicesString = btDevicesString + deviceName + " || " + deviceHardwareAddress + "\n";
+
                             if (deviceHardwareAddress.equals("00:14:03:05:05:43")) {
                                 Log.d(TAG, "Target device found");
                                 arduinoUUID = device.getUuids()[0].getUuid();
@@ -224,4 +222,61 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // Method to send commands via Bluetooth
+    private void sendCommand(String command) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (btOutputStream != null && btSocket != null && btSocket.isConnected()) {
+                        btOutputStream.write(command.getBytes());
+                        btOutputStream.flush();
+                        Log.d(TAG, "Sent command: " + command.trim());
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                TextView btReadings = findViewById(R.id.btReadings);
+                                btReadings.setText("Sent: " + command.trim());
+                            }
+                        });
+                    } else {
+                        Log.e(TAG, "Cannot send command - not connected");
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                TextView btReadings = findViewById(R.id.btReadings);
+                                btReadings.setText("Error: Not connected");
+                            }
+                        });
+                    }
+                } catch (IOException e) {
+                    Log.e(TAG, "Error sending command: " + e.getMessage(), e);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            TextView btReadings = findViewById(R.id.btReadings);
+                            btReadings.setText("Error sending command");
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Close Bluetooth connection when app is destroyed
+        try {
+            if (btOutputStream != null) {
+                btOutputStream.close();
+            }
+            if (btSocket != null) {
+                btSocket.close();
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "Error closing BT connection", e);
+        }
+    }
 }
