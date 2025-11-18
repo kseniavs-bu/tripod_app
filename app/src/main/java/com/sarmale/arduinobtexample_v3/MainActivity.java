@@ -66,6 +66,8 @@ public class MainActivity extends AppCompatActivity {
         Button btnTilt = findViewById(R.id.btnTilt);
         Button btnMoveUp = findViewById(R.id.btnMoveUp);
         Button btnMoveDown = findViewById(R.id.btnMoveDown);
+        Button btnMoveUpNew = findViewById(R.id.btnMoveUpNew);
+        Button btnMoveDownNew = findViewById(R.id.btnMoveDownNew);
 
         Log.d(TAG, "Begin Execution");
 
@@ -133,6 +135,8 @@ public class MainActivity extends AppCompatActivity {
                                         btnTilt.setEnabled(true);
                                         btnMoveUp.setEnabled(true);
                                         btnMoveDown.setEnabled(true);
+                                        btnMoveUpNew.setEnabled(true);
+                                        btnMoveDownNew.setEnabled(true);
                                     },
                                     error -> {
                                         Log.e(TAG, "Connection error: " + error.getMessage(), error);
@@ -163,7 +167,7 @@ public class MainActivity extends AppCompatActivity {
         btnMoveUp.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                sendCommand("MOVE_UP\n");
+                sendCommand("2");
             }
         });
 
@@ -171,7 +175,23 @@ public class MainActivity extends AppCompatActivity {
         btnMoveDown.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                sendCommand("MOVE_DOWN\n");
+                sendCommand("3");
+            }
+        });
+
+        // NEW MOVE UP button (sends "5")
+        btnMoveUpNew.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                sendCommand("5");
+            }
+        });
+
+        // NEW MOVE DOWN button (sends "6")
+        btnMoveDownNew.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                sendCommand("6");
             }
         });
 

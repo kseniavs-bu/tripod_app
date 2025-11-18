@@ -26,7 +26,7 @@
         android:layout_marginTop="32dp"
         android:layout_marginEnd="8dp"
         android:enabled="false"
-        android:text="PAN"
+        android:text="PAN RIGHT"
         android:textColor="@android:color/white"
         app:layout_constraintEnd_toStartOf="@id/btnTilt"
         app:layout_constraintHorizontal_chainStyle="packed"
@@ -53,7 +53,7 @@
         android:layout_marginTop="16dp"
         android:layout_marginEnd="8dp"
         android:enabled="false"
-        android:text="MOVE UP"
+        android:text="PAN LEFT"
         android:textColor="@android:color/white"
         app:layout_constraintEnd_toStartOf="@id/btnMoveDown"
         app:layout_constraintHorizontal_chainStyle="packed"
@@ -66,11 +66,38 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:enabled="false"
-        android:text="MOVE DOWN"
+        android:text="STRAIGHTEN TILT"
         android:textColor="@android:color/white"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/btnMoveUp"
         app:layout_constraintTop_toTopOf="@id/btnMoveUp" />
+
+    <!-- Control Buttons Row 3 -->
+    <Button
+        android:id="@+id/btnMoveUpNew"
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="8dp"
+        android:enabled="false"
+        android:text="MOVE UP"
+        android:textColor="@android:color/white"
+        app:layout_constraintEnd_toStartOf="@id/btnMoveDownNew"
+        app:layout_constraintHorizontal_chainStyle="packed"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btnMoveUp" />
+
+    <Button
+        android:id="@+id/btnMoveDownNew"
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:enabled="false"
+        android:text="MOVE DOWN"
+        android:textColor="@android:color/white"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/btnMoveUpNew"
+        app:layout_constraintTop_toTopOf="@id/btnMoveUpNew" />
 
     <Button
         android:id="@+id/seachDevices"
@@ -81,7 +108,7 @@
         android:textColor="@android:color/white"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnMoveUp" />
+        app:layout_constraintTop_toBottomOf="@id/btnMoveUpNew" />
 
     <TextView
         android:id="@+id/btDevicesText"
